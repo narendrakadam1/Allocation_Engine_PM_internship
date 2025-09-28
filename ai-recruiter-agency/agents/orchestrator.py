@@ -24,6 +24,28 @@ class OrchestratorAgent(BaseAgent):
         self.matcher = MatcherAgent()
         self.screener = ScreenerAgent()
         self.recommender = RecommenderAgent()
+    
+    def process_resume(self, resume_path):
+            """Existing resume processing (already works in your pipeline)."""
+            return self.run(resume_path)
+
+    def process_profile(self, student_profile, organizations):
+        """Match a student profile (no resume) to org jobs."""
+        skills = student_profile.get("skills", "").split(",")
+        matches = []
+        for org in organizations:
+            for job in org.get("jobs", []):
+                jd_skills = job["skills"].split(",")
+                score = len(set(skills) & set(jd_skills)) / max(1, len(jd_skills))
+                matches.append({
+                    "student": student_profile["name"],
+                    "organization": org["org_name"],
+                    "job": job["title"],
+                    "score": f"{score:.0%}"
+                })
+        best = max(matches, key=lambda x: float(x["score"].strip("%")), default=None)
+        return best
+
 
     async def run(self, messages: list) -> Dict[str, Any]:
         """Process a single message through the agent"""
@@ -90,3 +112,66 @@ class OrchestratorAgent(BaseAgent):
         except Exception as e:
             workflow_context.update({"status": "failed", "error": str(e)})
             raise
+
+
+# ---------------------------------------------------------------------------
+# Synchronous wrapper for the async OrchestratorAgent
+# Adds a stable, simple interface: Orchestrator.process_resume(path)
+# and Orchestrator.process_profile(profile, orgs)
+import asyncio
+from typing import List, Dict, Any
+
+class Orchestrator:
+    """
+    Lightweight synchronous wrapper around OrchestratorAgent.
+    It attempts to call the async agent.run(...) via asyncio.run.
+    If that fails it falls back to a simple skills-overlap heuristic for process_profile.
+    """
+    def __init__(self):
+        try:
+            # OrchestratorAgent is the async class already defined earlier in this module
+            self.agent = OrchestratorAgent()
+        except Exception:
+            self.agent = None
+
+    def process_resume(self, resume_path: str) -> Dict[str, Any]:
+        """Process a resume file (path) through the async orchestrator. Returns a dict result."""
+        messages = [{"role": "user", "content": str({"file_path": resume_path})}]
+        if self.agent is not None:
+            try:
+                return asyncio.run(self.agent.run(messages))
+            except Exception as e:
+                return {"status": "failed", "error": f"OrchestratorAgent.run failed: {e}"}
+        else:
+            return {"status": "failed", "error": "OrchestratorAgent not available"}
+
+    def process_profile(self, student_profile: Dict[str, Any], organizations: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Guarantee return: {"matches": [ ... ]}
+        """
+        results = []
+
+        if self.agent is not None:
+            try:
+                messages = [{"role": "user", "content": str({"profile": student_profile, "organizations": organizations})}]
+                res = asyncio.run(self.agent.run(messages))
+                if isinstance(res, dict) and "matches" in res:
+                    return res
+                if isinstance(res, dict):
+                    return {"matches": [res]}
+            except Exception:
+                pass
+
+        # Heuristic fallback
+        skills = [s.strip().lower() for s in student_profile.get("skills", "").split(",") if s.strip()]
+        for org in organizations:
+            for job in org.get("jobs", []):
+                jd_skills = [s.strip().lower() for s in job.get("skills", "").split(",") if s.strip()]
+                score = len(set(skills) & set(jd_skills)) / max(1, len(jd_skills))
+                results.append({
+                    "student": student_profile.get("name"),
+                    "organization": org.get("org_name"),
+                    "job": job.get("title"),
+                    "score": f"{int(score*100)}%"
+                })
+        return {"matches": results}

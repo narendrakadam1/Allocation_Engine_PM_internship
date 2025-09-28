@@ -1,0 +1,15 @@
+[
+  {
+    "org_name": "xyz ",
+    "email": "xyz@gmail.com ",
+    "location": "india ",
+    "jobs": [
+      {
+        "title": "security  ",
+        "skills": "cyber security expert  ",
+        "type": "Remote",
+        "location": "india "
+      }
+    ]
+  }
+]
