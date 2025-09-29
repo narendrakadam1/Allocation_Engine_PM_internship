@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <!-- @format -->
 # Update the Environment variable
 
@@ -43,3 +44,8 @@ Then **The AI Guild** is the perfect fit for you.
 Want to dive deeper and get the full experience? 🚀[Join the AI Guild Community](https://bit.ly/ai-guild-join) and unlock all the benefits of our growing community.
 
 We look forward to seeing what you’ll build with us!
+=======
+# Allocation_Engine_PM_internship
+Al-Based Smart Allocation  Engine for PM Internship  Schem
+hi
+>>>>>>> 3c6d71a81d25b795e2c0f4bb4b07952437940d0a
